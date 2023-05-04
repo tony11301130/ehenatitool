@@ -1,0 +1,146 @@
+import tkinter as tk
+from tkinter import filedialog
+from tkinter.filedialog import askdirectory
+import requests
+from bs4 import BeautifulSoup
+import os
+
+window = tk.Tk()
+window.title('EHENTAI下載器')
+window.geometry('800x600')
+window.resizable(0, 1)
+
+# 選擇folder
+def select_folder():
+    
+    selected_folder = filedialog.askdirectory()
+    select_path.set(selected_folder)
+select_path = tk.StringVar()
+
+def show_input_url():
+    url=input_url.get()
+    print(url)
+
+def show_load_folder():
+    folder_path=load_folder.get()
+    print(folder_path)
+
+def getData(url):
+    try:
+        head = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
+            AppleWebKit/537.36 (KHTML, like Gecko) \
+            Chrome/88.0.4324.146 Safari/537.36'}
+        
+        # ###################################
+        # print(url)
+        ##################################3
+    
+        r = requests.get(url, timeout=30, headers=head)
+        r.raise_for_status()
+        r.encoding = r.apparent_encoding
+        return r.text
+    except Exception:
+        print("出現錯誤")
+        return ''
+
+def findEveryJpgUrl(webData, mangaList):
+    soup = BeautifulSoup(webData, 'html.parser')
+    gdtms = soup.find_all('div', class_='gdtm')
+    for gdtm in gdtms:
+        a = gdtm.find('a')
+        mangaList.append(a['href'])
+    # print(mangaList)
+
+def findMangaPage(webData, mangaList):
+    soup = BeautifulSoup(webData, 'html.parser')
+    div = soup.find('div', id='i3')
+    img = div.find('img', id='img')
+    mangaList.append(img['src'])
+
+def download_Manga(PageList):
+    global count
+    folder_path = select_path.get()  # 使用者選擇的資料夾
+  
+    if not os.path.exists(folder_path): 
+        os.makedirs(folder_path)
+    for page in PageList:
+        print("正在下載第{}張".format(count))
+        try:
+            head = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
+                        AppleWebKit/537.36 (KHTML, like Gecko) \
+                        Chrome/88.0.4324.146 Safari/537.36'}
+            mangaData = requests.get(page, timeout=30, headers=head)
+            mangaData.raise_for_status()
+
+            file_path = os.path.join(folder_path, str(count) + '.jpg')  
+            with open(file_path, 'wb+') as manga:
+                manga.write(mangaData.content)
+            count += 1
+        except Exception:
+            print("第{}張下載失敗".format(count))
+            continue
+count = 1
+
+def main():
+
+    global count
+    count = 1
+    mangaUrlList = []
+    mangaPageList = []
+    # print("Dowloading {} page".format(j + 1))
+
+    # url = 'https://e-hentai.org/g/2487250/a63ee37cb6/'
+    url = input_url.get()
+
+    print(url)
+
+    websiteData = getData(url)
+    findEveryJpgUrl(websiteData, mangaUrlList)
+
+
+    # print(mangaUrlList)
+
+
+
+    for singleUrl in mangaUrlList:
+        webJpgData = getData(singleUrl)
+        findMangaPage(webJpgData, mangaPageList)
+
+    download_Manga(mangaPageList)
+
+
+    with open(select_path.get()+'/漫畫來源網址.txt', 'w', encoding='utf-8') as f: f.write(f'漫畫来源網址：{url}')
+
+
+    print("下載完成")
+
+
+##Label
+lb = tk.Label(text="請輸入網址",fg="blue",height=1)
+lb.place(x=0 ,y=0)
+lb2 = tk.Label(text="下載位址",fg="blue",height=1)
+lb2.place(x=0 ,y=50)
+
+
+##Entry
+input_url = tk.Entry(width=40)
+input_url.place(x=70 ,y=0)
+
+load_folder = tk.Entry(width=40,textvariable = select_path)
+load_folder.place(x=70 ,y=50)
+
+
+##Button
+select_folder_btn = tk.Button(window, text="選擇文件夾",height=1, command=select_folder)
+select_folder_btn.place(x=355 ,y=50)
+
+output_btn = tk.Button(text="開始下載",height=1,command=lambda:[show_input_url(),show_load_folder(),main()])
+output_btn.place(x=180 ,y=200)
+
+
+
+
+
+window.mainloop()
